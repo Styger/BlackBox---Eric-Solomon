@@ -1,7 +1,11 @@
+$Alphabet = @()
+$AlphabetNumber = 0
+
+for ($i = 97; $i -le 122; $i++) {
+    $Alphabet += [char]$i
+}
+
 function New-Field {
-
-
-
     <#
 
     .SYNOPSIS
@@ -59,26 +63,20 @@ function New-Field {
     #>
 
 
-
-
-
     param(
 
         [int] [Parameter(Mandatory=$false)]$length = 10,
-
-        [int] [Parameter(Mandatory=$false)]$width = 10
+        [int] [Parameter(Mandatory=$false)]$width = 10,
+        [bool] [Parameter(Mandatory=$false)]$SolutionField = $true,
+        [int] [Parameter(Mandatory=$false)]$AtomNumber = 5
 
     )
 
 
-
     Begin{
-
-
-
         # .Set Variables
 
-        $a = New-Object 'string[,]' $length, $width
+        $field = New-Object 'string[,]' $length, $width
 
     }
 
@@ -86,23 +84,21 @@ function New-Field {
 
     process {
 
-
-
-        for ($i = 0; $i -ne $length; $i++) {
+        for ($x = 0; $x -ne $length; $x++) {
 
             for ($y = 0; $y -ne $width; $y++) {
 
-                $a[$y, $i] = 1
+                $field[$x, $y] = 1
 
             }
 
         }
 
-        for ($i = 1; $i -ne ($length - 1); $i++) {
+        for ($x = 1; $x -ne ($length - 1); $x++) {
 
             for ($y = 1; $y -ne ($width - 1); $y++) {
 
-                $a[$y, $i] = 0
+                $field[$x, $y] = 0
 
             }
 
@@ -110,26 +106,30 @@ function New-Field {
 
 
 
-        #Random Atoms
+        #Random Atoms if it is a Solutionfield
+        if ($SolutionField) {
+            $RealAtomNumber = 0
+            Do{
 
-        $atomX = Get-Random -Minimum 1 -Maximum 9
+                $atomX = Get-Random -Minimum 1 -Maximum $length
+                $atomY = Get-Random -Minimum 1 -Maximum $width
+                if ($field[$atomX,$atomY] -eq 0) {
+                    $field[$atomX,$atomY] = "X"
+                    $RealAtomNumber+=1
+                }
 
-        $atomY = Get-Random -Minimum 1 -Maximum 9
-
-        $a[$atomX, $atomY] = "X"
-
-    }
-
-
-
-    end {
-
-        return ,$a
-
-    }
-
+            }until ($AtomNumber -eq $RealAtomNumber) 
+                
+            }
+                
+        }
+        end {
+            return ,$field
+    
+        }
 }
 
+    
 function Show-Field{
     param (
 
@@ -138,16 +138,366 @@ function Show-Field{
         [String[,]][Parameter(Mandatory=$true)]$field
 
     )
-        for ($i = 0;$i -ne $length; $i++){
-            $s =""
-            for ($y = 0;$y -ne $width; $y++){
-                $s += $field[$i, $y]
+    $s = ""
+        for ($y = 0;$y -ne $length; $y++){
+
+            $s += "`n"
+
+            for ($x = 0;$x -ne $width; $x++){
+
+                $s += $field[$x, $y]
                 $s += " "
+
             }
-            Write-Host $s
+
         }
+
+        Write-Host $s
 }
 
+function Show-Field2{
+    param (
 
-$field = New-Field
-Show-Field -field $field
+        [int] [Parameter(Mandatory=$false)]$length = 10,
+        [int] [Parameter(Mandatory=$false)]$width = 10,
+        [String[,]][Parameter(Mandatory=$true)]$field
+
+    )
+    $y = 0
+    Do{
+
+        $x = 0
+        $s += "`n"
+
+        Do{
+
+            $s += $field[$x, $y]
+            $s += " "
+            $x++
+
+        }while ($x -ne 10)
+
+        $y++
+
+    }while ($y -ne 10)
+
+    Write-Host $s
+
+}
+
+function Check-Success{
+    param(
+
+        [int] [Parameter(Mandatory=$false)]$length = 10,
+        [int] [Parameter(Mandatory=$false)]$width = 10,
+        [String[,]][Parameter(Mandatory=$true)]$field,
+        [String[,]][Parameter(Mandatory=$true)]$field2
+
+    )
+
+    for ($x = 1;$x -ne ($length-1); $x++){
+        for ($y = 1;$y -ne ($width-1); $y++){
+            if($field[$x,$y] -ne $field2[$x,$y]){
+
+            return $false
+
+            }
+
+        }
+    }
+
+    return $true
+
+}
+
+function Set-Atom{
+    param(
+
+        [int] [Parameter(Mandatory=$true)]$AtomX,
+        [int] [Parameter(Mandatory=$true)]$AtomY,
+        [String[,]][Parameter(Mandatory=$true)]$field
+
+    )
+
+
+    $field[$AtomX,$AtomY] = "X"
+
+}
+
+function Remove-Atom{
+    param(
+
+        [int] [Parameter(Mandatory=$true)]$AtomX,
+        [int] [Parameter(Mandatory=$true)]$AtomY,
+        [String[,]][Parameter(Mandatory=$true)]$field
+
+    )
+
+
+    $field[$AtomX,$AtomY] = 0
+
+}
+
+function Shoot-Laser {
+    param (
+
+        [int] [Parameter(Mandatory=$false)]$length = 10,
+        [int] [Parameter(Mandatory=$false)]$width = 10,
+        [int] [Parameter(Mandatory=$true)]$ShotX,
+        [int] [Parameter(Mandatory=$true)]$ShotY,
+        [String[,]] [Parameter(Mandatory=$true)]$SolutionField,
+        [String[,]] [Parameter(Mandatory=$true)]$UserField
+
+    )
+
+    #find Direction
+    if ($ShotX -eq 0) {
+        $direction = "O"
+    }elseif ($ShotX -eq ($length - 1)) {
+        $direction = "W"
+    }elseif ($ShotY -eq 0){
+        $direction = "S"
+    }elseif ($ShotY -eq ($width - 1)){
+        $direction = "N"
+    }else{
+        Write-Host "Not a Valid Coordinate"
+        Return
+    }
+
+    #Check if Response of Position is already known
+    if($UserField[$ShotX,$ShotY] -ne "1"){
+        Write-Host "The Response of the Position $ShotX / $ShotY is already known"
+        Return
+    }
+
+
+    $StartX = $ShotX
+    $StartY = $ShotY
+
+    #Check for special Rules
+    if ($direction -eq "O"){
+        if($SolutionField[($ShotX+1),($ShotY)] -eq "X"){
+            $UserField[$StartX,$StartY] = "H"
+            $SolutionField[$StartX,$StartY] = "H"
+            Return
+        }elseif ($SolutionField[($ShotX+1),($ShotY-1)] -eq "X" -or $SolutionField[($ShotX+1),($ShotY+1)] -eq "X" ) {
+            $UserField[$StartX,$StartY] = "R"
+            $SolutionField[$StartX,$StartY] = "R"
+            Return
+        }else{
+            $ShotX+=1
+        }
+    }elseif($direction -eq "W"){
+        if($SolutionField[($ShotX-1),$ShotY] -eq "X"){
+            $UserField[$StartX,$StartY] = "H"
+            $SolutionField[$StartX,$StartY] = "H"
+            Return
+        }elseif ($SolutionField[($ShotX-1),($ShotY-1)] -eq "X" -or $SolutionField[($ShotX-1),($ShotY+1)] -eq "X") {
+            $UserField[$StartX,$StartY] = "R"
+            $SolutionField[$StartX,$StartY] = "R"
+            Return
+        }else{
+            $ShotX-=1
+        }
+
+    }elseif($direction -eq "S"){
+        if($SolutionField[$ShotX,($ShotY+1)] -eq "X"){
+            $UserField[$StartX,$StartY] = "H"
+            $SolutionField[$StartX,$StartY] = "H"
+            Return
+        }elseif ($SolutionField[($ShotX+1),($ShotY+1)] -eq "X" -or $SolutionField[($ShotX-1),($ShotY+1)] -eq "X") {
+            $UserField[$StartX,$StartY] = "R"
+            $SolutionField[$StartX,$StartY] = "R"
+            Return
+        }else{
+            $ShotY+=1
+        }
+
+    }elseif($direction -eq "N"){
+        if($SolutionField[$ShotX,($ShotY-1)] -eq "X"){
+            $UserField[$StartX,$StartY] = "H"
+            $SolutionField[$StartX,$StartY] = "H"
+            Return
+        }elseif ($SolutionField[($ShotX+1),($ShotY-1)] -eq "X" -or $SolutionField[($ShotX-1),($ShotY-1)] -eq "X") {
+            $UserField[$StartX,$StartY] = "R"
+            $SolutionField[$StartX,$StartY] = "R"
+            Return
+        }else{
+            $ShotY-=1
+        }
+    }else{
+        Write-Host "Something is wrong"
+        Return
+    }
+
+   #Normal Rules (Algorithmus)
+    Do{
+        if ($direction -eq "O"){
+            if($SolutionField[($ShotX+1),$ShotY] -eq "X"){
+                $UserField[$StartX,$StartY] = "H"
+                $SolutionField[$StartX,$StartY] = "H"
+                Return
+            }elseif (($SolutionField[($ShotX+1),($ShotY+1)] -eq "X") -And ($SolutionField[($ShotX+1),($ShotY-1)] -eq "X")) {
+                $UserField[$StartX,$StartY] = "R"
+                $SolutionField[$StartX,$StartY] = "R"
+                Return
+            }elseif ($SolutionField[($ShotX+1),($ShotY+1)] -eq "X" ) {
+                $direction = "N"
+                $ShotY-=1
+
+            }elseif ( $SolutionField[($ShotX+1),($ShotY-1)] -eq "X") {
+                $direction = "S"
+                $ShotY+=1
+
+            }else{
+                $ShotX+=1
+            }
+        }elseif($direction -eq "W"){
+            if($SolutionField[($ShotX-1),$ShotY] -eq "X"){
+                $UserField[$StartX,$StartY] = "H"
+                $SolutionField[$StartX,$StartY] = "H"
+                Return
+            }elseif ($SolutionField[($ShotX-1),($ShotY+1)] -eq "X" -And $SolutionField[($ShotX-1),($ShotY-1)] -eq "X") {
+                $UserField[$StartX,$StartY] = "R"
+                $SolutionField[$StartX,$StartY] = "R"
+                Return
+            }elseif ($SolutionField[($ShotX-1),($ShotY+1)] -eq "X" ) {
+                $direction = "N"
+                $ShotY-=1
+
+            }elseif ( $SolutionField[($ShotX-1),($ShotY-1)] -eq "X") {
+                $direction = "S"
+                $ShotY+=1
+
+            }else{
+                $ShotX-=1
+            }
+
+        }elseif($direction -eq "S"){
+            if($SolutionField[$ShotX,($ShotY+1)] -eq "X"){
+                $UserField[$StartX,$StartY] = "H"
+                $SolutionField[$StartX,$StartY] = "H"
+                Return
+            }elseif ($SolutionField[($ShotX+1),($ShotY+1)] -eq "X" -And $SolutionField[($ShotX-1),($ShotY+1)] -eq "X") {
+                $UserField[$StartX,$StartY] = "R"
+                $SolutionField[$StartX,$StartY] = "R"
+                Return
+            }elseif ($SolutionField[($ShotX+1),($ShotY+1)] -eq "X" ) {
+                $direction = "W"
+                $ShotX+=1
+
+            }elseif ( $SolutionField[($ShotX-1),($ShotY+1)] -eq "X") {
+                $direction = "O"
+                $ShotX-=1
+
+            }else{
+                $ShotY+=1
+            }
+
+        }elseif($direction -eq "N"){
+            if($SolutionField[$ShotX,($ShotY-1)] -eq "X"){
+                $UserField[$StartX,$StartY] = "H"
+                $SolutionField[$StartX,$StartY] = "H"
+                Return
+            }elseif ($SolutionField[($ShotX+1),($ShotY-1)] -eq "X" -And $SolutionField[($ShotX-1),($ShotY-1)] -eq "X") {
+                $UserField[$StartX,$StartY] = "R"
+                $SolutionField[$StartX,$StartY] = "R"
+                Return
+            }elseif ($SolutionField[($ShotX+1),($ShotY-1)] -eq "X" ) {
+                $direction = "W"
+                $ShotX-=1
+
+            }elseif ( $SolutionField[($ShotX-1),($ShotY-1)] -eq "X") {
+                $direction = "O"
+                $ShotX+=1
+
+            }else{
+                $ShotY-=1
+            }
+        }else{
+            Write-Host "Something is wrong"
+            Return
+        }
+
+    }while($SolutionField[$ShotX,$ShotY] -eq 0)
+
+    $SolutionField[($ShotX),($ShotY)] = $Alphabet[$AlphabetNumber]
+    $SolutionField[($StartX),($StartY)] = $Alphabet[$AlphabetNumber]
+    $UserField[($ShotX),($ShotY)] = $Alphabet[$AlphabetNumber]
+    $UserField[($StartX),($StartY)] = $Alphabet[$AlphabetNumber]
+
+    Return 1
+
+
+
+
+
+}
+
+#Main
+
+$SolutionField = New-Field
+$UserField = New-Field -SolutionField $false
+
+
+
+
+Do{
+    Write-Host "`nEnter a Option"
+    $option = Read-Host
+    switch ($option)
+    {
+        1 {"Here is your Field"
+
+            Show-Field2 -field $UserField
+        }
+        2 {"Set an Atom`n"
+            Write-Host "define the X coordinate:"
+            $X = Read-Host
+            Write-Host "define the Y coordinate:"
+            $Y = Read-Host
+            Set-Atom -field $UserField -AtomX $X -AtomY $Y
+
+
+        }
+        3 {"Remove an Atom`n"
+            Write-Host "define the X coordinate:"
+            $X = Read-Host
+            Write-Host "define the Y coordinate:"
+            $Y = Read-Host
+            Remove-Atom -field $UserField -AtomX $X -AtomY $Y
+
+
+        }
+        4 {"Check if you have won the game`n"
+
+            if (Check-Success -field $UserField -field2 $SolutionField ) {
+                Write-Host "Congratulations you won!!!"
+            }else {
+                Write-Host "Sorry but you didn't win now"
+            }
+        }
+        5 {"Shoot with the Laser"
+            Write-Host "define the X coordinate:"
+            $X = Read-Host
+            Write-Host "define the Y coordinate:"
+            $Y = Read-Host
+            if((Shoot-Laser -SolutionField $SolutionField -UserField $UserField -ShotX $X -ShotY $Y) -eq 1){
+                $AlphabetNumber+=1
+            }
+
+
+
+        }
+
+        101 {"Here is the Solution Field"
+
+            Show-Field -field $SolutionField
+        }
+        12 {"Exit"
+            
+        
+        }
+    }
+
+}while($option -ne 11)
